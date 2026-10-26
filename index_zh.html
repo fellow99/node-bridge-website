@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>Node Bridge — 在 Android 与鸿蒙应用内运行真正的 Node.js</title>
+<meta name="description" content="把真正的 Node.js 运行时嵌进 Android 或鸿蒙应用自己的进程：JNI/NAPI 引导件以 dlopen(&quot;libnode.so&quot;) + node::Start 启动，并在 JavaScript 与 Kotlin / ArkTS 之间建立双向 JSON 桥。四个 MIT 仓库：每个平台各一个桥包与运行时包。">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f6fa">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#08090d">
+<link rel="canonical" href="https://fellow99.github.io/node-bridge-website/index_zh.html">
+<link rel="alternate" hreflang="en" href="https://fellow99.github.io/node-bridge-website/index.html">
+<link rel="alternate" hreflang="zh-CN" href="https://fellow99.github.io/node-bridge-website/index_zh.html">
+<link rel="alternate" hreflang="x-default" href="https://fellow99.github.io/node-bridge-website/index.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Node Bridge">
+<meta property="og:title" content="Node Bridge — 在 Android 与鸿蒙应用内运行真正的 Node.js">
+<meta property="og:description" content="在应用自己的进程内 dlopen(&quot;libnode.so&quot;) + node::Start。Android（Maven）与鸿蒙（ohpm）各有桥包 + 运行时包，Node v24.2.0，MIT。">
+<meta property="og:url" content="https://fellow99.github.io/node-bridge-website/index_zh.html">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:locale:alternate" content="en_US">
+<script>
+  /* 首屏渲染前套用已保存的主题，避免闪烁。 */
+  (function () {
+    var root = document.documentElement;
+    try {
+      var t = localStorage.getItem('nodebridge-theme');
+      if (t !== 'light' && t !== 'dark') {
+        t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      }
+      root.setAttribute('data-theme', t);
+      root.classList.add('js');
+      /* 兜底：若延迟脚本始终未执行，则照常显示内容。 */
+      window.setTimeout(function () {
+        if (!window.__nodebridgeReady) root.classList.remove('js');
+      }, 2000);
+    } catch (e) { /* 无操作：仍套用 CSS 默认主题 */ }
+  })();
+</script>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/svg+xml" href="images/logo.svg">
+</head>
+<body>
+
+<a class="skip-link" href="#main">跳到主要内容</a>
+
+<svg class="svg-sprite" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="i-github" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+  </symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="4.2"/>
+    <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+  </symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24">
+    <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/>
+  </symbol>
+  <symbol id="i-external" viewBox="0 0 24 24">
+    <path d="M7 17 17 7M9 7h8v8"/>
+  </symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24">
+    <path d="M12 5v14M6 13l6 6 6-6"/>
+  </symbol>
+  <symbol id="i-info" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M12 11v5M12 7.6v.2"/>
+  </symbol>
+</svg>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="#top" aria-label="Node Bridge — 回到顶部">
+      <img class="brand-logo" src="images/logo.svg" alt="">
+      <span class="brand-name">Node Bridge</span>
+      <span class="brand-by">by fellow99</span>
+    </a>
+
+    <nav class="nav" aria-label="章节">
+      <a href="#repos" data-nav>仓库</a>
+      <a href="#architecture" data-nav>架构</a>
+      <a href="#install" data-nav>接入</a>
+    </nav>
+
+    <div class="controls">
+      <div class="lang-switch" role="group" aria-label="语言">
+        <a class="lang" href="index.html" hreflang="en">EN</a>
+        <span class="lang-sep" aria-hidden="true">/</span>
+        <a class="lang is-active" href="index_zh.html" hreflang="zh-CN" aria-current="page">中文</a>
+      </div>
+
+      <button class="theme-toggle" id="themeToggle" type="button"
+              aria-label="切换到暗色主题"
+              data-label-dark="切换到暗色主题"
+              data-label-light="切换到亮色主题">
+        <svg class="icon-sun" aria-hidden="true"><use href="#i-sun"></use></svg>
+        <svg class="icon-moon" aria-hidden="true"><use href="#i-moon"></use></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============================== HERO ============================== -->
+  <section class="hero" id="top">
+    <div class="container hero-inner">
+      <p class="eyebrow reveal">开源 · MIT · 四个仓库</p>
+      <h1 class="hero-title reveal">在 Android 或鸿蒙应用里，跑起<span class="accent">真正的 Node.js</span></h1>
+      <p class="hero-lede reveal">
+        不是 WebView、不是云函数、不是子进程。JNI/NAPI 引导件在应用<strong>自己的进程</strong>内调用
+        <code>dlopen(&quot;libnode.so&quot;)</code> + <code>node::Start</code>，并在 JavaScript 与
+        Kotlin / ArkTS 之间建立双向 JSON 桥。
+      </p>
+
+      <ul class="chip-row reveal" aria-label="目标平台">
+        <li class="chip"><span class="dot dot-android" aria-hidden="true"></span>Android · minSdk 24</li>
+        <li class="chip"><span class="dot dot-harmony" aria-hidden="true"></span>鸿蒙 · 2in1 / 平板</li>
+        <li class="chip"><span class="dot dot-node" aria-hidden="true"></span>Node.js v24.2.0</li>
+        <li class="chip"><span class="dot dot-node" aria-hidden="true"></span>arm64-v8a</li>
+      </ul>
+
+      <div class="hero-actions reveal">
+        <a class="btn btn-primary" href="https://github.com/fellow99/node-bridge-workspace" target="_blank" rel="noopener">
+          <svg aria-hidden="true"><use href="#i-github"></use></svg>
+          在 GitHub 查看
+        </a>
+        <a class="btn btn-ghost" href="#install">
+          快速开始
+          <svg aria-hidden="true"><use href="#i-arrow"></use></svg>
+        </a>
+      </div>
+
+      <ul class="stat-strip reveal">
+        <li><span class="stat-num">4</span><span class="stat-label">个仓库</span></li>
+        <li><span class="stat-num">2</span><span class="stat-label">个移动平台</span></li>
+        <li><span class="stat-num">v24.2.0</span><span class="stat-label">Node.js 引擎</span></li>
+        <li><span class="stat-num">100%</span><span class="stat-label">进程内运行</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================ REPOS =============================== -->
+  <section class="section" id="repos">
+    <div class="container">
+      <header class="section-head reveal">
+        <p class="eyebrow">ls -1 ~/node-bridge</p>
+        <h2 class="section-title">四个仓库，一套契约</h2>
+        <p class="section-lede">
+          每个平台都拆成两个包发布——小巧的<strong>桥</strong>（API 与加载器，走自己的 semver）与
+          <strong>运行时</strong>（只有引擎，版本号等于 Node.js 版本）。它们只在进程运行期相遇。
+        </p>
+      </header>
+
+      <div class="repo-grid">
+
+        <a class="repo-card reveal" href="https://github.com/fellow99/aosp-node-bridge" target="_blank" rel="noopener">
+          <div class="card-top">
+            <span class="plat-badge plat-android"><span class="dot" aria-hidden="true"></span>Android</span>
+            <span class="role-pill">桥</span>
+          </div>
+          <h3 class="repo-title">aosp-node-bridge</h3>
+          <p class="repo-desc">
+            Kotlin API 与 JNI 引导件：NodeRuntime 状态机、说 JSON 的宿主桥、以及一个 NAPI addon。
+            运行期加载 <code>libnode.so</code>，从不链接它。
+          </p>
+          <code class="coord-chip">io.github.fellow99:node-bridge:0.2.0</code>
+          <ul class="card-tags">
+            <li>Kotlin</li><li>JNI</li><li>N-API</li><li>AAR · Maven Central</li>
+          </ul>
+          <span class="card-link">查看仓库 <svg aria-hidden="true"><use href="#i-external"></use></svg></span>
+        </a>
+
+        <a class="repo-card reveal" href="https://github.com/fellow99/aosp-node-runtime" target="_blank" rel="noopener">
+          <div class="card-top">
+            <span class="plat-badge plat-android"><span class="dot" aria-hidden="true"></span>Android</span>
+            <span class="role-pill">运行时</span>
+          </div>
+          <h3 class="repo-title">aosp-node-runtime</h3>
+          <p class="repo-desc">
+            打包成 AAR 的 Android 版 Node.js 引擎：交叉编译的 <code>libnode.so</code>（arm64-v8a）
+            加 <code>libc++_shared.so</code>，仅此而已。制品版本号等于 Node.js 版本。
+          </p>
+          <code class="coord-chip">io.github.fellow99:node-runtime:24.2.0</code>
+          <ul class="card-tags">
+            <li>libnode.so</li><li>NDK r28</li><li>GitHub Actions</li><li>AAR</li>
+          </ul>
+          <span class="card-link">查看仓库 <svg aria-hidden="true"><use href="#i-external"></use></svg></span>
+        </a>
+
+        <a class="repo-card reveal" href="https://github.com/fellow99/ohos-node-bridge" target="_blank" rel="noopener">
+          <div class="card-top">
+            <span class="plat-badge plat-harmony"><span class="dot" aria-hidden="true"></span>HarmonyOS</span>
+            <span class="role-pill">桥</span>
+          </div>
+          <h3 class="repo-title">ohos-node-bridge</h3>
+          <p class="repo-desc">
+            面向鸿蒙的 ArkTS API 与 NAPI 引导件，发布到 ohpm：NodeRuntime、HostBridge（Node → ArkTS）、
+            日志与崩溃取证，以及 <code>dlopen</code> 加载器。
+          </p>
+          <code class="coord-chip">@fellow99/node-bridge@0.2.0</code>
+          <ul class="card-tags">
+            <li>ArkTS</li><li>N-API</li><li>HAR · ohpm</li><li>2in1 / 平板</li>
+          </ul>
+          <span class="card-link">查看仓库 <svg aria-hidden="true"><use href="#i-external"></use></svg></span>
+        </a>
+
+        <a class="repo-card reveal" href="https://github.com/fellow99/ohos-node-runtime" target="_blank" rel="noopener">
+          <div class="card-top">
+            <span class="plat-badge plat-harmony"><span class="dot" aria-hidden="true"></span>HarmonyOS</span>
+            <span class="role-pill">运行时</span>
+          </div>
+          <h3 class="repo-title">ohos-node-runtime</h3>
+          <p class="repo-desc">
+            以 HAR 承载的 OpenHarmony arm64-v8a 引擎：<code>libnode.so</code> +
+            <code>libc++_shared.so</code> 与版本常量。由云 CI 用 OpenHarmony LLVM-19 工具链交叉编译，
+            自身不提供任何 ArkTS API。
+          </p>
+          <code class="coord-chip">@fellow99/node-runtime@24.2.0</code>
+          <ul class="card-tags">
+            <li>libnode.so</li><li>LLVM-19</li><li>HAR · ohpm</li><li>SHA-256 锁定</li>
+          </ul>
+          <span class="card-link">查看仓库 <svg aria-hidden="true"><use href="#i-external"></use></svg></span>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================== ARCHITECTURE ========================== -->
+  <section class="section tint-bg" id="architecture">
+    <div class="container">
+      <header class="section-head reveal">
+        <p class="eyebrow">nm -D libnode_bridge.so | grep Start</p>
+        <h2 class="section-title">一个进程，一台引擎，两个包</h2>
+      </header>
+
+      <div class="arch-grid">
+        <div class="arch-copy reveal">
+          <p>
+            桥只是一个加载器和一个说 JSON 的宿主。它从不链接引擎，而是运行期用
+            <code>dlopen</code> 找到 <code>libnode.so</code>、经
+            <code>node::Start(int, char**)</code> 进入。引擎本身就是一个普通共享对象——
+            <code>ET_DYN</code>、无 <code>PT_INTERP</code>。
+          </p>
+          <p>
+            NAPI addon 故意保留未定义的 <code>napi_*</code> 符号（<code>-z undefs</code>），
+            运行期再对着已加载的引擎（<code>RTLD_GLOBAL</code>）解析——用的永远是 Node 自己的
+            N-API 实现。<strong>换 Node 版本，不必重编桥。</strong>
+          </p>
+          <ul class="legend">
+            <li><code>libnode_bridge.so</code><span>加载器——只链接 <code>log</code>/<code>dl</code>；dlopen + dlsym</span></li>
+            <li><code>libnode_host_client.so</code><span>NAPI addon，经 <code>process.dlopen</code> 加载</span></li>
+            <li><code>libnode.so</code><span>Node.js + V8，来自运行时包</span></li>
+            <li><code>bootstrap.js · host.js</code><span>JS 载荷，从应用 assets 物化到沙箱</span></li>
+          </ul>
+        </div>
+
+        <figure class="codewin reveal" aria-label="进程内架构示意图">
+          <div class="codewin-bar">
+            <span class="codewin-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="codewin-name">in-process.txt</span>
+          </div>
+<pre class="codewin-body" aria-hidden="true">┌─────────────────────── app process ────────────────────────┐
+│                                                            │
+│  Kotlin / ArkTS           NodeRuntime · HostBridge         │
+│       ▲  result (JSON)       │ host requests (JSON)        │
+│       ▼                      ▼                             │
+│  libnode_bridge.so ◀ slot ▶ libnode_host_client.so (NAPI)  │
+│       ▲ dlopen+dlsym              ▲ process.dlopen         │
+│       └──────────┐     ┌──────────┘                        │
+│              libnode.so  (Node.js + V8)                    │
+│                 ◀──── bootstrap.js · host.js               │
+│                                                            │
+└────────────────────────────────────────────────────────────┘</pre>
+        </figure>
+      </div>
+
+      <div class="principles">
+        <article class="principle reveal">
+          <span class="principle-num">01</span>
+          <h3>靠契约咬合，不靠链接</h3>
+          <p>
+            唯一需要的符号是 <code>node::Start</code> 与稳定的 N-API 表面。桥不关心、也不需要知道
+            提供它们的是哪个 Node 小版本。
+          </p>
+        </article>
+        <article class="principle reveal">
+          <span class="principle-num">02</span>
+          <h3>每个平台两个包</h3>
+          <p>
+            约半 MB 的桥走自己的 semver；约 41&nbsp;MB 的引擎，版本号<em>就是</em> Node 版本。
+            发桥的修复不用碰引擎，反之亦然。
+          </p>
+        </article>
+        <article class="principle reveal">
+          <span class="principle-num">03</span>
+          <h3>锁版本、可复现、可校验</h3>
+          <p>
+            每台引擎都由 CI 从官方 Node 源码包交叉编译；SHA-256 锁进
+            <code>runtime.lock.json</code>，7 项 ELF 门禁检查 <code>ET_DYN</code>、
+            <code>PT_INTERP=0</code>、ABI 与导出的入口符号。
+          </p>
+        </article>
+        <article class="principle reveal">
+          <span class="principle-num">04</span>
+          <h3>失败永远可见</h3>
+          <p>
+            <code>Idle → Starting → Running → Exited/Failed</code> 是可观察的状态机；平台硬限制
+            一律上报给调用方，绝不粉饰。
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ INSTALL ============================= -->
+  <section class="section" id="install">
+    <div class="container">
+      <header class="section-head reveal">
+        <p class="eyebrow">./quickstart --platform</p>
+        <h2 class="section-title">加两个依赖，调一次 start</h2>
+        <p class="section-lede">
+          桥提供 API，运行时提供引擎，两者缺一不可——桥从不硬依赖某个具体的引擎构建。
+        </p>
+      </header>
+
+      <div class="install-grid">
+
+        <article class="install-card reveal">
+          <div class="install-head">
+            <h3>Android</h3>
+            <span class="plat-badge plat-android"><span class="dot" aria-hidden="true"></span>Maven Central</span>
+          </div>
+
+          <figure class="codewin">
+            <div class="codewin-bar">
+              <span class="codewin-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="codewin-name">build.gradle.kts</span>
+            </div>
+<pre class="codewin-body">dependencies {
+    implementation(<span class="s">"io.github.fellow99:node-bridge:0.2.0"</span>)
+    <span class="c">// 引擎，按 Node.js 版本钉死</span>
+    runtimeOnly(<span class="s">"io.github.fellow99:node-runtime:24.2.0"</span>)
+}</pre>
+          </figure>
+
+          <figure class="codewin">
+            <div class="codewin-bar">
+              <span class="codewin-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="codewin-name">NodeRuntime.kt</span>
+            </div>
+<pre class="codewin-body"><span class="c">// 先注册宿主能力，再启动（顺序不能反）</span>
+val rt = NodeRuntime.getInstance(context)
+rt.host.register(<span class="s">"fs.pickFolder"</span>) {
+    <span class="s">"""{"ok":true,"path":"/sdcard/Download"}"""</span>
+}
+rt.start(NodeRuntimeOptions(
+    entry = <span class="s">"bootstrap.js"</span>,
+    appEntry = <span class="s">"selfcheck.js"</span>,
+))
+<span class="c">// 空闲 → 启动中 → 运行中 → 已退出 / 失败</span></pre>
+          </figure>
+
+          <a class="card-link" href="https://github.com/fellow99/aosp-node-bridge/blob/main/README_zh.md#快速开始" target="_blank" rel="noopener">
+            查看 Android 接入指南 <svg aria-hidden="true"><use href="#i-external"></use></svg>
+          </a>
+        </article>
+
+        <article class="install-card reveal">
+          <div class="install-head">
+            <h3>HarmonyOS 鸿蒙</h3>
+            <span class="plat-badge plat-harmony"><span class="dot" aria-hidden="true"></span>ohpm</span>
+          </div>
+
+          <figure class="codewin">
+            <div class="codewin-bar">
+              <span class="codewin-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="codewin-name">terminal</span>
+            </div>
+<pre class="codewin-body">ohpm install @fellow99/node-bridge
+ohpm install @fellow99/node-runtime@24.2.0
+<span class="c"># 两个包都要装——桥不依赖运行时包</span></pre>
+          </figure>
+
+          <div class="callout">
+            <span class="callout-icon" aria-hidden="true"><svg><use href="#i-info"></use></svg></span>
+            <span>
+              <strong>JIT 权限：</strong>V8 JIT 需要在 <code>module.json5</code> 中申请
+              <code>ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY</code> ACL；没有它
+              <code>--jitless</code> 仍可运行，但 WebAssembly 不可用。
+            </span>
+          </div>
+
+          <figure class="codewin">
+            <div class="codewin-bar">
+              <span class="codewin-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="codewin-name">NodeRuntime.ets</span>
+            </div>
+<pre class="codewin-body">import { NodeRuntime } from <span class="s">'@fellow99/node-bridge'</span>;
+
+NodeRuntime.getInstance().start(ctx, {
+  scriptPath: <span class="s">'&lt;沙箱路径&gt;/payload/bootstrap.js'</span>,
+});</pre>
+          </figure>
+
+          <a class="card-link" href="https://github.com/fellow99/ohos-node-bridge#消费方接入三步" target="_blank" rel="noopener">
+            查看鸿蒙接入指南 <svg aria-hidden="true"><use href="#i-external"></use></svg>
+          </a>
+        </article>
+
+      </div>
+
+      <div class="constraints reveal">
+        <h3>如实告知的限制——上报，绝不静默降级</h3>
+        <ul>
+          <li><code>node::Start</code> 每进程只能执行一次，崩溃即终态；需要可重启就把 Node 放进独立的 <code>:node</code> 进程。</li>
+          <li>鸿蒙只面向 <code>2in1</code> / 平板（不做手机）；Android 需 <code>minSdk 24</code>。两端都只提供 arm64-v8a。</li>
+          <li>应用 assets 不是文件系统路径；启动前 JS 载荷会被物化进应用沙箱——这件事由库自动完成。</li>
+          <li>JIT 已在真机验证：JIT 与 WebAssembly 在 Android 15 与鸿蒙 2in1 设备上均确认可用。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ CTA BAND ============================ -->
+  <section class="section tint-bg cta-band">
+    <div class="container">
+      <header class="section-head reveal">
+        <p class="eyebrow">git clone --recurse-submodules</p>
+        <h2 class="section-title">四个仓库，零个黑盒</h2>
+        <p class="section-lede">
+          每一个引擎二进制都由 CI 从官方 Node.js 源码构建，发布前过 SHA-256 校验与 ELF 门禁。
+          总控工作区以 submodule 把四个仓挂在一起。
+        </p>
+      </header>
+      <div class="hero-actions reveal">
+        <a class="btn btn-primary" href="https://github.com/fellow99/node-bridge-workspace" target="_blank" rel="noopener">
+          <svg aria-hidden="true"><use href="#i-github"></use></svg>
+          node-bridge-workspace
+        </a>
+        <a class="btn btn-ghost" href="https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge" target="_blank" rel="noopener">
+          ohpm 上的 @fellow99/node-bridge
+          <svg aria-hidden="true"><use href="#i-external"></use></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <div class="footer-brand">
+        <img class="brand-logo" src="images/logo.svg" alt="">
+        <span>Node Bridge</span>
+      </div>
+      <p class="footer-one">进程内的真 Node.js——Android 与鸿蒙。桥 + 运行时，fellow99 的四个 MIT 仓库。</p>
+      <p class="footer-copy">© <span data-year>2026</span> fellow99 · MIT · 随包引擎适用 Node.js 上游许可</p>
+    </div>
+
+    <div class="footer-cols">
+      <nav class="footer-col" aria-label="仓库">
+        <h4>仓库</h4>
+        <a href="https://github.com/fellow99/aosp-node-bridge" target="_blank" rel="noopener">aosp-node-bridge</a>
+        <a href="https://github.com/fellow99/aosp-node-runtime" target="_blank" rel="noopener">aosp-node-runtime</a>
+        <a href="https://github.com/fellow99/ohos-node-bridge" target="_blank" rel="noopener">ohos-node-bridge</a>
+        <a href="https://github.com/fellow99/ohos-node-runtime" target="_blank" rel="noopener">ohos-node-runtime</a>
+      </nav>
+      <nav class="footer-col" aria-label="包">
+        <h4>软件包</h4>
+        <a href="https://central.sonatype.com/artifact/io.github.fellow99/node-bridge" target="_blank" rel="noopener">Maven 上的 node-bridge</a>
+        <a href="https://central.sonatype.com/artifact/io.github.fellow99/node-runtime" target="_blank" rel="noopener">Maven 上的 node-runtime</a>
+        <a href="https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge" target="_blank" rel="noopener">@fellow99/node-bridge</a>
+        <a href="https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime" target="_blank" rel="noopener">@fellow99/node-runtime</a>
+        <a href="index.html" hreflang="en">English</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

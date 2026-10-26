@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>Node Bridge — Real Node.js inside Android &amp; HarmonyOS apps</title>
+<meta name="description" content="Embed a real Node.js runtime in your Android or HarmonyOS app's own process: dlopen(&quot;libnode.so&quot;) + node::Start via a JNI/NAPI bootstrap, with a bidirectional JSON bridge to Kotlin or ArkTS. Four MIT repos: bridge + runtime per platform.">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f6fa">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#08090d">
+<link rel="canonical" href="https://fellow99.github.io/node-bridge-website/index.html">
+<link rel="alternate" hreflang="en" href="https://fellow99.github.io/node-bridge-website/index.html">
+<link rel="alternate" hreflang="zh-CN" href="https://fellow99.github.io/node-bridge-website/index_zh.html">
+<link rel="alternate" hreflang="x-default" href="https://fellow99.github.io/node-bridge-website/index.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Node Bridge">
+<meta property="og:title" content="Node Bridge — Real Node.js inside Android &amp; HarmonyOS apps">
+<meta property="og:description" content="dlopen(&#34;libnode.so&#34;) + node::Start in your app&#39;s own process. Bridge + runtime packages for Android (Maven) and HarmonyOS (ohpm), Node v24.2.0, MIT.">
+<meta property="og:url" content="https://fellow99.github.io/node-bridge-website/index.html">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="zh_CN">
+<script>
+  /* Apply the persisted theme before first paint to avoid a flash. */
+  (function () {
+    var root = document.documentElement;
+    try {
+      var t = localStorage.getItem('nodebridge-theme');
+      if (t !== 'light' && t !== 'dark') {
+        t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      }
+      root.setAttribute('data-theme', t);
+      root.classList.add('js');
+      /* Failsafe: reveal content even if the deferred script never runs. */
+      window.setTimeout(function () {
+        if (!window.__nodebridgeReady) root.classList.remove('js');
+      }, 2000);
+    } catch (e) { /* no-op: CSS default theme still applies */ }
+  })();
+</script>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/svg+xml" href="images/logo.svg">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<svg class="svg-sprite" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="i-github" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+  </symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="4.2"/>
+    <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+  </symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24">
+    <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/>
+  </symbol>
+  <symbol id="i-external" viewBox="0 0 24 24">
+    <path d="M7 17 17 7M9 7h8v8"/>
+  </symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24">
+    <path d="M12 5v14M6 13l6 6 6-6"/>
+  </symbol>
+  <symbol id="i-info" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M12 11v5M12 7.6v.2"/>
+  </symbol>
+</svg>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="#top" aria-label="Node Bridge — back to top">
+      <img class="brand-logo" src="images/logo.svg" alt="">
+      <span class="brand-name">Node Bridge</span>
+      <span class="brand-by">by fellow99</span>
+    </a>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="#repos" data-nav>Repositories</a>
+      <a href="#architecture" data-nav>Architecture</a>
+      <a href="#install" data-nav>Install</a>
+    </nav>
+
+    <div class="controls">
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a class="lang is-active" href="index.html" hreflang="en" aria-current="page">EN</a>
+        <span class="lang-sep" aria-hidden="true">/</span>
+        <a class="lang" href="index_zh.html" hreflang="zh-CN">中文</a>
+      </div>
+
+      <button class="theme-toggle" id="themeToggle" type="button"
+              aria-label="Switch to dark theme"
+              data-label-dark="Switch to dark theme"
+              data-label-light="Switch to light theme">
+        <svg class="icon-sun" aria-hidden="true"><use href="#i-sun"></use></svg>
+        <svg class="icon-moon" aria-hidden="true"><use href="#i-moon"></use></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============================== HERO ============================== -->
+  <section class="hero" id="top">
+    <div class="container hero-inner">
+      <p class="eyebrow reveal">open source · MIT · four repositories</p>
+      <h1 class="hero-title reveal">Run <span class="accent">real Node.js</span> inside your Android or HarmonyOS app.</h1>
+      <p class="hero-lede reveal">
+        Not a WebView, not a cloud function, not a subprocess. A JNI/NAPI bootstrap calls
+        <code>dlopen(&quot;libnode.so&quot;)</code> + <code>node::Start</code> in your app&#39;s
+        <strong>own process</strong>, with a bidirectional JSON bridge between JavaScript and
+        Kotlin or ArkTS.
+      </p>
+
+      <ul class="chip-row reveal" aria-label="Targets">
+        <li class="chip"><span class="dot dot-android" aria-hidden="true"></span>Android · minSdk 24</li>
+        <li class="chip"><span class="dot dot-harmony" aria-hidden="true"></span>HarmonyOS · 2in1 / tablet</li>
+        <li class="chip"><span class="dot dot-node" aria-hidden="true"></span>Node.js v24.2.0</li>
+        <li class="chip"><span class="dot dot-node" aria-hidden="true"></span>arm64-v8a</li>
+      </ul>
+
+      <div class="hero-actions reveal">
+        <a class="btn btn-primary" href="https://github.com/fellow99/node-bridge-workspace" target="_blank" rel="noopener">
+          <svg aria-hidden="true"><use href="#i-github"></use></svg>
+          View on GitHub
+        </a>
+        <a class="btn btn-ghost" href="#install">
+          Quick start
+          <svg aria-hidden="true"><use href="#i-arrow"></use></svg>
+        </a>
+      </div>
+
+      <ul class="stat-strip reveal">
+        <li><span class="stat-num">4</span><span class="stat-label">repositories</span></li>
+        <li><span class="stat-num">2</span><span class="stat-label">mobile platforms</span></li>
+        <li><span class="stat-num">v24.2.0</span><span class="stat-label">Node.js engine</span></li>
+        <li><span class="stat-num">100%</span><span class="stat-label">in-process</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================ REPOS =============================== -->
+  <section class="section" id="repos">
+    <div class="container">
+      <header class="section-head reveal">
+        <p class="eyebrow">ls -1 ~/node-bridge</p>
+        <h2 class="section-title">Four repositories, one contract</h2>
+        <p class="section-lede">
+          On each platform the work ships as two packages — a small <strong>bridge</strong>
+          (API + loader, its own semver) and a <strong>runtime</strong> (engine only, versioned
+          exactly like Node.js). They meet only at process runtime.
+        </p>
+      </header>
+
+      <div class="repo-grid">
+
+        <a class="repo-card reveal" href="https://github.com/fellow99/aosp-node-bridge" target="_blank" rel="noopener">
+          <div class="card-top">
+            <span class="plat-badge plat-android"><span class="dot" aria-hidden="true"></span>Android</span>
+            <span class="role-pill">bridge</span>
+          </div>
+          <h3 class="repo-title">aosp-node-bridge</h3>
+          <p class="repo-desc">
+            The Kotlin API and JNI bootstrap: the NodeRuntime state machine, the JSON-speaking host
+            bridge and a NAPI addon. Loads <code>libnode.so</code> at runtime — never links it.
+          </p>
+          <code class="coord-chip">io.github.fellow99:node-bridge:0.2.0</code>
+          <ul class="card-tags">
+            <li>Kotlin</li><li>JNI</li><li>N-API</li><li>AAR · Maven Central</li>
+          </ul>
+          <span class="card-link">View repository <svg aria-hidden="true"><use href="#i-external"></use></svg></span>
+        </a>
+
+        <a class="repo-card reveal" href="https://github.com/fellow99/aosp-node-runtime" target="_blank" rel="noopener">
+          <div class="card-top">
+            <span class="plat-badge plat-android"><span class="dot" aria-hidden="true"></span>Android</span>
+            <span class="role-pill">runtime</span>
+          </div>
+          <h3 class="repo-title">aosp-node-runtime</h3>
+          <p class="repo-desc">
+            The Node.js engine for Android, packaged as an AAR: a cross-compiled
+            <code>libnode.so</code> (arm64-v8a) plus <code>libc++_shared.so</code>, nothing else.
+            The artifact version equals the Node.js version.
+          </p>
+          <code class="coord-chip">io.github.fellow99:node-runtime:24.2.0</code>
+          <ul class="card-tags">
+            <li>libnode.so</li><li>NDK r28</li><li>GitHub Actions</li><li>AAR</li>
+          </ul>
+          <span class="card-link">View repository <svg aria-hidden="true"><use href="#i-external"></use></svg></span>
+        </a>
+
+        <a class="repo-card reveal" href="https://github.com/fellow99/ohos-node-bridge" target="_blank" rel="noopener">
+          <div class="card-top">
+            <span class="plat-badge plat-harmony"><span class="dot" aria-hidden="true"></span>HarmonyOS</span>
+            <span class="role-pill">bridge</span>
+          </div>
+          <h3 class="repo-title">ohos-node-bridge</h3>
+          <p class="repo-desc">
+            The ArkTS API and NAPI bootstrap for HarmonyOS, published to ohpm: NodeRuntime,
+            HostBridge (Node → ArkTS), logging and crash forensics, and the <code>dlopen</code> loader.
+          </p>
+          <code class="coord-chip">@fellow99/node-bridge@0.2.0</code>
+          <ul class="card-tags">
+            <li>ArkTS</li><li>N-API</li><li>HAR · ohpm</li><li>2in1 / tablet</li>
+          </ul>
+          <span class="card-link">View repository <svg aria-hidden="true"><use href="#i-external"></use></svg></span>
+        </a>
+
+        <a class="repo-card reveal" href="https://github.com/fellow99/ohos-node-runtime" target="_blank" rel="noopener">
+          <div class="card-top">
+            <span class="plat-badge plat-harmony"><span class="dot" aria-hidden="true"></span>HarmonyOS</span>
+            <span class="role-pill">runtime</span>
+          </div>
+          <h3 class="repo-title">ohos-node-runtime</h3>
+          <p class="repo-desc">
+            The OpenHarmony arm64-v8a engine in a HAR: <code>libnode.so</code> +
+            <code>libc++_shared.so</code> and version constants. Cross-compiled with the
+            OpenHarmony LLVM-19 toolchain in cloud CI. No ArkTS API of its own.
+          </p>
+          <code class="coord-chip">@fellow99/node-runtime@24.2.0</code>
+          <ul class="card-tags">
+            <li>libnode.so</li><li>LLVM-19</li><li>HAR · ohpm</li><li>SHA-256 locked</li>
+          </ul>
+          <span class="card-link">View repository <svg aria-hidden="true"><use href="#i-external"></use></svg></span>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================== ARCHITECTURE ========================== -->
+  <section class="section tint-bg" id="architecture">
+    <div class="container">
+      <header class="section-head reveal">
+        <p class="eyebrow">nm -D libnode_bridge.so | grep Start</p>
+        <h2 class="section-title">One process. One engine. Two packages.</h2>
+      </header>
+
+      <div class="arch-grid">
+        <div class="arch-copy reveal">
+          <p>
+            The bridge is just a loader and a JSON-speaking host. It never links the engine; it
+            finds <code>libnode.so</code> at runtime with <code>dlopen</code> and enters it through
+            <code>node::Start(int, char**)</code>. The engine itself is an ordinary shared object —
+            <code>ET_DYN</code>, no <code>PT_INTERP</code>.
+          </p>
+          <p>
+            The NAPI addon leaves its <code>napi_*</code> symbols undefined on purpose
+            (<code>-z undefs</code>); they resolve against the already-loaded engine
+            (<code>RTLD_GLOBAL</code>), so Node&#39;s own N-API implementation is always used.
+            <strong>Swap Node versions without recompiling the bridge.</strong>
+          </p>
+          <ul class="legend">
+            <li><code>libnode_bridge.so</code><span>loader — links only <code>log</code>/<code>dl</code>; dlopen + dlsym</span></li>
+            <li><code>libnode_host_client.so</code><span>NAPI addon, loaded via <code>process.dlopen</code></span></li>
+            <li><code>libnode.so</code><span>Node.js + V8, from the runtime package</span></li>
+            <li><code>bootstrap.js · host.js</code><span>JS payload, materialized from app assets</span></li>
+          </ul>
+        </div>
+
+        <figure class="codewin reveal" aria-label="In-process architecture diagram">
+          <div class="codewin-bar">
+            <span class="codewin-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="codewin-name">in-process.txt</span>
+          </div>
+<pre class="codewin-body" aria-hidden="true">┌─────────────────────── app process ────────────────────────┐
+│                                                            │
+│  Kotlin / ArkTS           NodeRuntime · HostBridge         │
+│       ▲  result (JSON)       │ host requests (JSON)        │
+│       ▼                      ▼                             │
+│  libnode_bridge.so ◀ slot ▶ libnode_host_client.so (NAPI)  │
+│       ▲ dlopen+dlsym              ▲ process.dlopen         │
+│       └──────────┐     ┌──────────┘                        │
+│              libnode.so  (Node.js + V8)                    │
+│                 ◀──── bootstrap.js · host.js               │
+│                                                            │
+└────────────────────────────────────────────────────────────┘</pre>
+        </figure>
+      </div>
+
+      <div class="principles">
+        <article class="principle reveal">
+          <span class="principle-num">01</span>
+          <h3>Contract, not linkage</h3>
+          <p>
+            The only required symbols are <code>node::Start</code> and the stable N-API surface.
+            The bridge does not know or care which Node minor version provides them.
+          </p>
+        </article>
+        <article class="principle reveal">
+          <span class="principle-num">02</span>
+          <h3>Two packages per platform</h3>
+          <p>
+            A ~half-MB bridge on its own semver, and a ~41&nbsp;MB engine whose version
+            <em>is</em> the Node version. Ship bridge fixes without touching the engine, and
+            vice-versa.
+          </p>
+        </article>
+        <article class="principle reveal">
+          <span class="principle-num">03</span>
+          <h3>Pinned, reproduced, verified</h3>
+          <p>
+            Every engine is CI-cross-compiled from the official Node tarball. SHA-256 is locked in
+            <code>runtime.lock.json</code>; 7 ELF gates check <code>ET_DYN</code>,
+            <code>PT_INTERP=0</code>, ABI and the exported entry point.
+          </p>
+        </article>
+        <article class="principle reveal">
+          <span class="principle-num">04</span>
+          <h3>Failures stay visible</h3>
+          <p>
+            <code>Idle → Starting → Running → Exited/Failed</code> is an observable state machine.
+            Hard platform limits are reported to the caller — never papered over.
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ INSTALL ============================= -->
+  <section class="section" id="install">
+    <div class="container">
+      <header class="section-head reveal">
+        <p class="eyebrow">./quickstart --platform</p>
+        <h2 class="section-title">Add two dependencies, call start</h2>
+        <p class="section-lede">
+          The bridge gives you the API; the runtime supplies the engine. Both are required — the
+          bridge never declares a hard dependency on a specific engine build.
+        </p>
+      </header>
+
+      <div class="install-grid">
+
+        <article class="install-card reveal">
+          <div class="install-head">
+            <h3>Android</h3>
+            <span class="plat-badge plat-android"><span class="dot" aria-hidden="true"></span>Maven Central</span>
+          </div>
+
+          <figure class="codewin">
+            <div class="codewin-bar">
+              <span class="codewin-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="codewin-name">build.gradle.kts</span>
+            </div>
+<pre class="codewin-body">dependencies {
+    implementation(<span class="s">"io.github.fellow99:node-bridge:0.2.0"</span>)
+    <span class="c">// engine, pinned to the Node.js version</span>
+    runtimeOnly(<span class="s">"io.github.fellow99:node-runtime:24.2.0"</span>)
+}</pre>
+          </figure>
+
+          <figure class="codewin">
+            <div class="codewin-bar">
+              <span class="codewin-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="codewin-name">NodeRuntime.kt</span>
+            </div>
+<pre class="codewin-body"><span class="c">// register host capabilities FIRST, then start</span>
+val rt = NodeRuntime.getInstance(context)
+rt.host.register(<span class="s">"fs.pickFolder"</span>) {
+    <span class="s">"""{"ok":true,"path":"/sdcard/Download"}"""</span>
+}
+rt.start(NodeRuntimeOptions(
+    entry = <span class="s">"bootstrap.js"</span>,
+    appEntry = <span class="s">"selfcheck.js"</span>,
+))
+<span class="c">// Idle → Starting → Running → Exited/Failed</span></pre>
+          </figure>
+
+          <a class="card-link" href="https://github.com/fellow99/aosp-node-bridge#quick-start" target="_blank" rel="noopener">
+            Read the Android guide <svg aria-hidden="true"><use href="#i-external"></use></svg>
+          </a>
+        </article>
+
+        <article class="install-card reveal">
+          <div class="install-head">
+            <h3>HarmonyOS</h3>
+            <span class="plat-badge plat-harmony"><span class="dot" aria-hidden="true"></span>ohpm</span>
+          </div>
+
+          <figure class="codewin">
+            <div class="codewin-bar">
+              <span class="codewin-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="codewin-name">terminal</span>
+            </div>
+<pre class="codewin-body">ohpm install @fellow99/node-bridge
+ohpm install @fellow99/node-runtime@24.2.0
+<span class="c"># install both — the bridge does not depend on the runtime</span></pre>
+          </figure>
+
+          <div class="callout">
+            <span class="callout-icon" aria-hidden="true"><svg><use href="#i-info"></use></svg></span>
+            <span>
+              <strong>JIT permission:</strong> V8 JIT needs the
+              <code>ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY</code> ACL in your
+              <code>module.json5</code>. Without it <code>--jitless</code> still runs, but
+              WebAssembly is unavailable.
+            </span>
+          </div>
+
+          <figure class="codewin">
+            <div class="codewin-bar">
+              <span class="codewin-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="codewin-name">NodeRuntime.ets</span>
+            </div>
+<pre class="codewin-body">import { NodeRuntime } from <span class="s">'@fellow99/node-bridge'</span>;
+
+NodeRuntime.getInstance().start(ctx, {
+  scriptPath: <span class="s">'&lt;sandbox&gt;/payload/bootstrap.js'</span>,
+});</pre>
+          </figure>
+
+          <a class="card-link" href="https://github.com/fellow99/ohos-node-bridge#消费方接入三步" target="_blank" rel="noopener">
+            Read the HarmonyOS guide <svg aria-hidden="true"><use href="#i-external"></use></svg>
+          </a>
+        </article>
+
+      </div>
+
+      <div class="constraints reveal">
+        <h3>Honest constraints — reported, never silently degraded</h3>
+        <ul>
+          <li><code>node::Start</code> runs once per process; a crash is terminal. Use a dedicated <code>:node</code> process for restartability.</li>
+          <li>HarmonyOS targets <code>2in1</code> / <code>tablet</code> only (no phone); Android needs <code>minSdk 24</code>. arm64-v8a is the only ABI.</li>
+          <li>App assets are not a filesystem path; the JS payload is materialized into the app sandbox before start — the library handles it.</li>
+          <li>JIT is verified on real hardware: JIT and WebAssembly confirmed working on Android 15 and HarmonyOS 2in1 devices.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ CTA BAND ============================ -->
+  <section class="section tint-bg cta-band">
+    <div class="container">
+      <header class="section-head reveal">
+        <p class="eyebrow">git clone --recurse-submodules</p>
+        <h2 class="section-title">Four repos. Zero black boxes.</h2>
+        <p class="section-lede">
+          Every engine binary is CI-built from the official Node.js source, checksum-locked and
+          ELF-gated before publishing. The umbrella workspace wires all four up as submodules.
+        </p>
+      </header>
+      <div class="hero-actions reveal">
+        <a class="btn btn-primary" href="https://github.com/fellow99/node-bridge-workspace" target="_blank" rel="noopener">
+          <svg aria-hidden="true"><use href="#i-github"></use></svg>
+          node-bridge-workspace
+        </a>
+        <a class="btn btn-ghost" href="https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge" target="_blank" rel="noopener">
+          @fellow99/node-bridge on ohpm
+          <svg aria-hidden="true"><use href="#i-external"></use></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <div class="footer-brand">
+        <img class="brand-logo" src="images/logo.svg" alt="">
+        <span>Node Bridge</span>
+      </div>
+      <p class="footer-one">Real Node.js, in-process — Android &amp; HarmonyOS. Bridge + runtime, four MIT repositories by fellow99.</p>
+      <p class="footer-copy">© <span data-year>2026</span> fellow99 · MIT · the bundled engine is covered by the upstream Node.js license</p>
+    </div>
+
+    <div class="footer-cols">
+      <nav class="footer-col" aria-label="Repositories">
+        <h4>Repositories</h4>
+        <a href="https://github.com/fellow99/aosp-node-bridge" target="_blank" rel="noopener">aosp-node-bridge</a>
+        <a href="https://github.com/fellow99/aosp-node-runtime" target="_blank" rel="noopener">aosp-node-runtime</a>
+        <a href="https://github.com/fellow99/ohos-node-bridge" target="_blank" rel="noopener">ohos-node-bridge</a>
+        <a href="https://github.com/fellow99/ohos-node-runtime" target="_blank" rel="noopener">ohos-node-runtime</a>
+      </nav>
+      <nav class="footer-col" aria-label="Packages">
+        <h4>Packages</h4>
+        <a href="https://central.sonatype.com/artifact/io.github.fellow99/node-bridge" target="_blank" rel="noopener">node-bridge on Maven</a>
+        <a href="https://central.sonatype.com/artifact/io.github.fellow99/node-runtime" target="_blank" rel="noopener">node-runtime on Maven</a>
+        <a href="https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge" target="_blank" rel="noopener">@fellow99/node-bridge</a>
+        <a href="https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime" target="_blank" rel="noopener">@fellow99/node-runtime</a>
+        <a href="index_zh.html" hreflang="zh-CN">中文版</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
