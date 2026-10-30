@@ -2,11 +2,11 @@
 
 [**English**](README.md) · [中文](README_zh.md)
 
-The project website for the Node Bridge family — four repositories that embed a **real Node.js
+The project website for the Node Bridge family — five repositories that embed a **real Node.js
 runtime in-process** on Android and HarmonyOS (`dlopen("libnode.so")` + `node::Start`, bridge +
-runtime packages per platform):
+runtime packages per platform, plus a version-matched node-pty addon on Android):
 
-- [aosp-node-bridge](https://github.com/fellow99/aosp-node-bridge) / [aosp-node-runtime](https://github.com/fellow99/aosp-node-runtime) — Kotlin/JNI, Maven Central
+- [aosp-node-bridge](https://github.com/fellow99/aosp-node-bridge) / [aosp-node-runtime](https://github.com/fellow99/aosp-node-runtime) / [aosp-node-pty](https://github.com/fellow99/aosp-node-pty) — Kotlin/JNI, Maven Central / GitHub Release
 - [ohos-node-bridge](https://github.com/fellow99/ohos-node-bridge) / [ohos-node-runtime](https://github.com/fellow99/ohos-node-runtime) — ArkTS/NAPI, ohpm
 
 Live site: <https://fellow99.github.io/node-bridge-website/>

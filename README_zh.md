@@ -3,9 +3,10 @@
 [English](README.md) · [**中文**](README_zh.md)
 
 Node Bridge 家族的项目官网——介绍在 Android 与鸿蒙上把**真正的 Node.js 运行时嵌进应用进程**
-（`dlopen("libnode.so")` + `node::Start`，每个平台各一对桥包 + 运行时包）的四个仓库：
+（`dlopen("libnode.so")` + `node::Start`，每个平台各一对桥包 + 运行时包，Android 另有一个与运行时
+同版本的 node-pty 原生件）的五个仓库：
 
-- [aosp-node-bridge](https://github.com/fellow99/aosp-node-bridge) / [aosp-node-runtime](https://github.com/fellow99/aosp-node-runtime)——Kotlin/JNI，发布于 Maven Central
+- [aosp-node-bridge](https://github.com/fellow99/aosp-node-bridge) / [aosp-node-runtime](https://github.com/fellow99/aosp-node-runtime) / [aosp-node-pty](https://github.com/fellow99/aosp-node-pty)——Kotlin/JNI，发布于 Maven Central / GitHub Release
 - [ohos-node-bridge](https://github.com/fellow99/ohos-node-bridge) / [ohos-node-runtime](https://github.com/fellow99/ohos-node-runtime)——ArkTS/NAPI，发布于 ohpm
 
 线上站点：<https://fellow99.github.io/node-bridge-website/>

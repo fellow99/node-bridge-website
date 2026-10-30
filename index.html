@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
 <title>Node Bridge — Real Node.js inside Android &amp; HarmonyOS apps</title>
-<meta name="description" content="Embed a real Node.js runtime in your Android or HarmonyOS app's own process: dlopen(&quot;libnode.so&quot;) + node::Start via a JNI/NAPI bootstrap, with a bidirectional JSON bridge to Kotlin or ArkTS. Four MIT repos: bridge + runtime per platform.">
+<meta name="description" content="Embed a real Node.js runtime in your Android or HarmonyOS app's own process: dlopen(&quot;libnode.so&quot;) + node::Start via a JNI/NAPI bootstrap, with a bidirectional JSON bridge to Kotlin or ArkTS. Five MIT repos: bridge + runtime per platform, plus a node-pty addon on Android.">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f6fa">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#08090d">
 <link rel="canonical" href="https://fellow99.github.io/node-bridge-website/index.html">
@@ -15,7 +15,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Node Bridge">
 <meta property="og:title" content="Node Bridge — Real Node.js inside Android &amp; HarmonyOS apps">
-<meta property="og:description" content="dlopen(&#34;libnode.so&#34;) + node::Start in your app&#39;s own process. Bridge + runtime packages for Android (Maven) and HarmonyOS (ohpm), Node v24.2.0, MIT.">
+<meta property="og:description" content="dlopen(&#34;libnode.so&#34;) + node::Start in your app&#39;s own process. Bridge + runtime packages for Android (Maven) and HarmonyOS (ohpm), Node v24.22.1 on Android, plus a node-pty addon, MIT.">
 <meta property="og:url" content="https://fellow99.github.io/node-bridge-website/index.html">
 <meta property="og:locale" content="en_US">
 <meta property="og:locale:alternate" content="zh_CN">
@@ -104,7 +104,7 @@
   <!-- ============================== HERO ============================== -->
   <section class="hero" id="top">
     <div class="container hero-inner">
-      <p class="eyebrow reveal">open source · MIT · four repositories</p>
+      <p class="eyebrow reveal">open source · MIT · five repositories</p>
       <h1 class="hero-title reveal">Run <span class="accent">real Node.js</span> inside your Android or HarmonyOS app.</h1>
       <p class="hero-lede reveal">
         Not a WebView, not a cloud function, not a subprocess. A JNI/NAPI bootstrap calls
@@ -116,8 +116,8 @@
       <ul class="chip-row reveal" aria-label="Targets">
         <li class="chip"><span class="dot dot-android" aria-hidden="true"></span>Android · minSdk 24</li>
         <li class="chip"><span class="dot dot-harmony" aria-hidden="true"></span>HarmonyOS · 2in1 / tablet</li>
-        <li class="chip"><span class="dot dot-node" aria-hidden="true"></span>Node.js v24.2.0</li>
-        <li class="chip"><span class="dot dot-node" aria-hidden="true"></span>arm64-v8a</li>
+        <li class="chip"><span class="dot dot-node" aria-hidden="true"></span>Node.js v24.22.1 (Android)</li>
+        <li class="chip"><span class="dot dot-node" aria-hidden="true"></span>arm64-v8a · +node-pty</li>
       </ul>
 
       <div class="hero-actions reveal">
@@ -132,9 +132,9 @@
       </div>
 
       <ul class="stat-strip reveal">
-        <li><span class="stat-num">4</span><span class="stat-label">repositories</span></li>
+        <li><span class="stat-num">5</span><span class="stat-label">repositories</span></li>
         <li><span class="stat-num">2</span><span class="stat-label">mobile platforms</span></li>
-        <li><span class="stat-num">v24.2.0</span><span class="stat-label">Node.js engine</span></li>
+        <li><span class="stat-num">v24.22.1</span><span class="stat-label">Android engine</span></li>
         <li><span class="stat-num">100%</span><span class="stat-label">in-process</span></li>
       </ul>
     </div>
@@ -145,11 +145,12 @@
     <div class="container">
       <header class="section-head reveal">
         <p class="eyebrow">ls -1 ~/node-bridge</p>
-        <h2 class="section-title">Four repositories, one contract</h2>
+        <h2 class="section-title">Five repositories, one contract</h2>
         <p class="section-lede">
           On each platform the work ships as two packages — a small <strong>bridge</strong>
           (API + loader, its own semver) and a <strong>runtime</strong> (engine only, versioned
-          exactly like Node.js). They meet only at process runtime.
+          exactly like Node.js). They meet only at process runtime. Android additionally ships a
+          version-matched <strong>node-pty</strong> addon for pseudoterminals.
         </p>
       </header>
 
@@ -183,9 +184,28 @@
             <code>libnode.so</code> (arm64-v8a) plus <code>libc++_shared.so</code>, nothing else.
             The artifact version equals the Node.js version.
           </p>
-          <code class="coord-chip">io.github.fellow99:node-runtime:24.2.0</code>
+          <code class="coord-chip">io.github.fellow99:node-runtime:24.22.1</code>
           <ul class="card-tags">
             <li>libnode.so</li><li>NDK r28</li><li>GitHub Actions</li><li>AAR</li>
+          </ul>
+          <span class="card-link">View repository <svg aria-hidden="true"><use href="#i-external"></use></svg></span>
+        </a>
+
+        <a class="repo-card reveal" href="https://github.com/fellow99/aosp-node-pty" target="_blank" rel="noopener">
+          <div class="card-top">
+            <span class="plat-badge plat-android"><span class="dot" aria-hidden="true"></span>Android</span>
+            <span class="role-pill">node-pty</span>
+          </div>
+          <h3 class="repo-title">aosp-node-pty</h3>
+          <p class="repo-desc">
+            Cross-compiled <a href="https://www.npmjs.com/package/node-pty" target="_blank" rel="noopener">node-pty</a>
+            addon as an AAR: a single <code>libpty_node.so</code> (arm64-v8a) for pseudoterminals.
+            It records <code>DT_NEEDED libnode.so</code>; its <code>napi_*</code> symbols stay
+            undefined and resolve against the paired engine. Versioned 1:1 with the runtime.
+          </p>
+          <code class="coord-chip">io.github.fellow99:node-pty:24.22.1</code>
+          <ul class="card-tags">
+            <li>libpty_node.so</li><li>DT_NEEDED libnode.so</li><li>N-API</li><li>Release</li>
           </ul>
           <span class="card-link">View repository <svg aria-hidden="true"><use href="#i-external"></use></svg></span>
         </a>
@@ -346,7 +366,9 @@
 <pre class="codewin-body">dependencies {
     implementation(<span class="s">"io.github.fellow99:node-bridge:0.2.0"</span>)
     <span class="c">// engine, pinned to the Node.js version</span>
-    runtimeOnly(<span class="s">"io.github.fellow99:node-runtime:24.2.0"</span>)
+    runtimeOnly(<span class="s">"io.github.fellow99:node-runtime:24.22.1"</span>)
+    <span class="c">// optional: node-pty addon, same version as the runtime</span>
+    runtimeOnly(<span class="s">"io.github.fellow99:node-pty:24.22.1"</span>)
 }</pre>
           </figure>
 
@@ -434,10 +456,10 @@ NodeRuntime.getInstance().start(ctx, {
     <div class="container">
       <header class="section-head reveal">
         <p class="eyebrow">git clone --recurse-submodules</p>
-        <h2 class="section-title">Four repos. Zero black boxes.</h2>
+        <h2 class="section-title">Five repos. Zero black boxes.</h2>
         <p class="section-lede">
           Every engine binary is CI-built from the official Node.js source, checksum-locked and
-          ELF-gated before publishing. The umbrella workspace wires all four up as submodules.
+          ELF-gated before publishing. The umbrella workspace wires all five up as submodules.
         </p>
       </header>
       <div class="hero-actions reveal">
@@ -462,7 +484,7 @@ NodeRuntime.getInstance().start(ctx, {
         <img class="brand-logo" src="images/logo.svg" alt="">
         <span>Node Bridge</span>
       </div>
-      <p class="footer-one">Real Node.js, in-process — Android &amp; HarmonyOS. Bridge + runtime, four MIT repositories by fellow99.</p>
+      <p class="footer-one">Real Node.js, in-process — Android &amp; HarmonyOS. Bridge + runtime (plus a node-pty addon on Android), five MIT repositories by fellow99.</p>
       <p class="footer-copy">© <span data-year>2026</span> fellow99 · MIT · the bundled engine is covered by the upstream Node.js license</p>
     </div>
 
@@ -471,6 +493,7 @@ NodeRuntime.getInstance().start(ctx, {
         <h4>Repositories</h4>
         <a href="https://github.com/fellow99/aosp-node-bridge" target="_blank" rel="noopener">aosp-node-bridge</a>
         <a href="https://github.com/fellow99/aosp-node-runtime" target="_blank" rel="noopener">aosp-node-runtime</a>
+        <a href="https://github.com/fellow99/aosp-node-pty" target="_blank" rel="noopener">aosp-node-pty</a>
         <a href="https://github.com/fellow99/ohos-node-bridge" target="_blank" rel="noopener">ohos-node-bridge</a>
         <a href="https://github.com/fellow99/ohos-node-runtime" target="_blank" rel="noopener">ohos-node-runtime</a>
       </nav>
@@ -478,6 +501,7 @@ NodeRuntime.getInstance().start(ctx, {
         <h4>Packages</h4>
         <a href="https://central.sonatype.com/artifact/io.github.fellow99/node-bridge" target="_blank" rel="noopener">node-bridge on Maven</a>
         <a href="https://central.sonatype.com/artifact/io.github.fellow99/node-runtime" target="_blank" rel="noopener">node-runtime on Maven</a>
+        <a href="https://github.com/fellow99/aosp-node-pty/releases/tag/v24.22.1" target="_blank" rel="noopener">node-pty v24.22.1 release</a>
         <a href="https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge" target="_blank" rel="noopener">@fellow99/node-bridge</a>
         <a href="https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime" target="_blank" rel="noopener">@fellow99/node-runtime</a>
         <a href="index_zh.html" hreflang="zh-CN">中文版</a>

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
 <title>Node Bridge — 在 Android 与鸿蒙应用内运行真正的 Node.js</title>
-<meta name="description" content="把真正的 Node.js 运行时嵌进 Android 或鸿蒙应用自己的进程：JNI/NAPI 引导件以 dlopen(&quot;libnode.so&quot;) + node::Start 启动，并在 JavaScript 与 Kotlin / ArkTS 之间建立双向 JSON 桥。四个 MIT 仓库：每个平台各一个桥包与运行时包。">
+<meta name="description" content="把真正的 Node.js 运行时嵌进 Android 或鸿蒙应用自己的进程：JNI/NAPI 引导件以 dlopen(&quot;libnode.so&quot;) + node::Start 启动，并在 JavaScript 与 Kotlin / ArkTS 之间建立双向 JSON 桥。五个 MIT 仓库：每个平台各一个桥包与运行时包，Android 另加一个 node-pty 原生件。">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f6fa">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#08090d">
 <link rel="canonical" href="https://fellow99.github.io/node-bridge-website/index_zh.html">
@@ -15,7 +15,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Node Bridge">
 <meta property="og:title" content="Node Bridge — 在 Android 与鸿蒙应用内运行真正的 Node.js">
-<meta property="og:description" content="在应用自己的进程内 dlopen(&quot;libnode.so&quot;) + node::Start。Android（Maven）与鸿蒙（ohpm）各有桥包 + 运行时包，Node v24.2.0，MIT。">
+<meta property="og:description" content="在应用自己的进程内 dlopen(&quot;libnode.so&quot;) + node::Start。Android（Maven）与鸿蒙（ohpm）各有桥包 + 运行时包，Android Node v24.22.1，另含 node-pty 原生件，MIT。">
 <meta property="og:url" content="https://fellow99.github.io/node-bridge-website/index_zh.html">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:locale:alternate" content="en_US">
@@ -104,7 +104,7 @@
   <!-- ============================== HERO ============================== -->
   <section class="hero" id="top">
     <div class="container hero-inner">
-      <p class="eyebrow reveal">开源 · MIT · 四个仓库</p>
+      <p class="eyebrow reveal">开源 · MIT · 五个仓库</p>
       <h1 class="hero-title reveal">在 Android 或鸿蒙应用里，跑起<span class="accent">真正的 Node.js</span></h1>
       <p class="hero-lede reveal">
         不是 WebView、不是云函数、不是子进程。JNI/NAPI 引导件在应用<strong>自己的进程</strong>内调用
@@ -115,8 +115,8 @@
       <ul class="chip-row reveal" aria-label="目标平台">
         <li class="chip"><span class="dot dot-android" aria-hidden="true"></span>Android · minSdk 24</li>
         <li class="chip"><span class="dot dot-harmony" aria-hidden="true"></span>鸿蒙 · 2in1 / 平板</li>
-        <li class="chip"><span class="dot dot-node" aria-hidden="true"></span>Node.js v24.2.0</li>
-        <li class="chip"><span class="dot dot-node" aria-hidden="true"></span>arm64-v8a</li>
+        <li class="chip"><span class="dot dot-node" aria-hidden="true"></span>Node.js v24.22.1（Android）</li>
+        <li class="chip"><span class="dot dot-node" aria-hidden="true"></span>arm64-v8a · 含 node-pty</li>
       </ul>
 
       <div class="hero-actions reveal">
@@ -131,9 +131,9 @@
       </div>
 
       <ul class="stat-strip reveal">
-        <li><span class="stat-num">4</span><span class="stat-label">个仓库</span></li>
+        <li><span class="stat-num">5</span><span class="stat-label">个仓库</span></li>
         <li><span class="stat-num">2</span><span class="stat-label">个移动平台</span></li>
-        <li><span class="stat-num">v24.2.0</span><span class="stat-label">Node.js 引擎</span></li>
+        <li><span class="stat-num">v24.22.1</span><span class="stat-label">Android 引擎</span></li>
         <li><span class="stat-num">100%</span><span class="stat-label">进程内运行</span></li>
       </ul>
     </div>
@@ -144,10 +144,11 @@
     <div class="container">
       <header class="section-head reveal">
         <p class="eyebrow">ls -1 ~/node-bridge</p>
-        <h2 class="section-title">四个仓库，一套契约</h2>
+        <h2 class="section-title">五个仓库，一套契约</h2>
         <p class="section-lede">
           每个平台都拆成两个包发布——小巧的<strong>桥</strong>（API 与加载器，走自己的 semver）与
           <strong>运行时</strong>（只有引擎，版本号等于 Node.js 版本）。它们只在进程运行期相遇。
+          Android 还额外提供一个与运行时同版本的 <strong>node-pty</strong> 伪终端原生件。
         </p>
       </header>
 
@@ -180,9 +181,28 @@
             打包成 AAR 的 Android 版 Node.js 引擎：交叉编译的 <code>libnode.so</code>（arm64-v8a）
             加 <code>libc++_shared.so</code>，仅此而已。制品版本号等于 Node.js 版本。
           </p>
-          <code class="coord-chip">io.github.fellow99:node-runtime:24.2.0</code>
+          <code class="coord-chip">io.github.fellow99:node-runtime:24.22.1</code>
           <ul class="card-tags">
             <li>libnode.so</li><li>NDK r28</li><li>GitHub Actions</li><li>AAR</li>
+          </ul>
+          <span class="card-link">查看仓库 <svg aria-hidden="true"><use href="#i-external"></use></svg></span>
+        </a>
+
+        <a class="repo-card reveal" href="https://github.com/fellow99/aosp-node-pty" target="_blank" rel="noopener">
+          <div class="card-top">
+            <span class="plat-badge plat-android"><span class="dot" aria-hidden="true"></span>Android</span>
+            <span class="role-pill">node-pty</span>
+          </div>
+          <h3 class="repo-title">aosp-node-pty</h3>
+          <p class="repo-desc">
+            以 AAR 承载的交叉编译 <a href="https://www.npmjs.com/package/node-pty" target="_blank" rel="noopener">node-pty</a>
+            原生件：单个 <code>libpty_node.so</code>（arm64-v8a），提供伪终端能力。它登记
+            <code>DT_NEEDED libnode.so</code>，<code>napi_*</code> 符号保持未定义、运行期由配对引擎解析，
+            与运行时版本一对一。
+          </p>
+          <code class="coord-chip">io.github.fellow99:node-pty:24.22.1</code>
+          <ul class="card-tags">
+            <li>libpty_node.so</li><li>DT_NEEDED libnode.so</li><li>N-API</li><li>Release</li>
           </ul>
           <span class="card-link">查看仓库 <svg aria-hidden="true"><use href="#i-external"></use></svg></span>
         </a>
@@ -340,7 +360,9 @@
 <pre class="codewin-body">dependencies {
     implementation(<span class="s">"io.github.fellow99:node-bridge:0.2.0"</span>)
     <span class="c">// 引擎，按 Node.js 版本钉死</span>
-    runtimeOnly(<span class="s">"io.github.fellow99:node-runtime:24.2.0"</span>)
+    runtimeOnly(<span class="s">"io.github.fellow99:node-runtime:24.22.1"</span>)
+    <span class="c">// 可选：node-pty 原生件，与运行时同版本</span>
+    runtimeOnly(<span class="s">"io.github.fellow99:node-pty:24.22.1"</span>)
 }</pre>
           </figure>
 
@@ -427,10 +449,10 @@ NodeRuntime.getInstance().start(ctx, {
     <div class="container">
       <header class="section-head reveal">
         <p class="eyebrow">git clone --recurse-submodules</p>
-        <h2 class="section-title">四个仓库，零个黑盒</h2>
+        <h2 class="section-title">五个仓库，零个黑盒</h2>
         <p class="section-lede">
           每一个引擎二进制都由 CI 从官方 Node.js 源码构建，发布前过 SHA-256 校验与 ELF 门禁。
-          总控工作区以 submodule 把四个仓挂在一起。
+          总控工作区以 submodule 把五个仓挂在一起。
         </p>
       </header>
       <div class="hero-actions reveal">
@@ -455,7 +477,7 @@ NodeRuntime.getInstance().start(ctx, {
         <img class="brand-logo" src="images/logo.svg" alt="">
         <span>Node Bridge</span>
       </div>
-      <p class="footer-one">进程内的真 Node.js——Android 与鸿蒙。桥 + 运行时，fellow99 的四个 MIT 仓库。</p>
+      <p class="footer-one">进程内的真 Node.js——Android 与鸿蒙。桥 + 运行时（Android 另含 node-pty 原生件），fellow99 的五个 MIT 仓库。</p>
       <p class="footer-copy">© <span data-year>2026</span> fellow99 · MIT · 随包引擎适用 Node.js 上游许可</p>
     </div>
 
@@ -464,6 +486,7 @@ NodeRuntime.getInstance().start(ctx, {
         <h4>仓库</h4>
         <a href="https://github.com/fellow99/aosp-node-bridge" target="_blank" rel="noopener">aosp-node-bridge</a>
         <a href="https://github.com/fellow99/aosp-node-runtime" target="_blank" rel="noopener">aosp-node-runtime</a>
+        <a href="https://github.com/fellow99/aosp-node-pty" target="_blank" rel="noopener">aosp-node-pty</a>
         <a href="https://github.com/fellow99/ohos-node-bridge" target="_blank" rel="noopener">ohos-node-bridge</a>
         <a href="https://github.com/fellow99/ohos-node-runtime" target="_blank" rel="noopener">ohos-node-runtime</a>
       </nav>
@@ -471,6 +494,7 @@ NodeRuntime.getInstance().start(ctx, {
         <h4>软件包</h4>
         <a href="https://central.sonatype.com/artifact/io.github.fellow99/node-bridge" target="_blank" rel="noopener">Maven 上的 node-bridge</a>
         <a href="https://central.sonatype.com/artifact/io.github.fellow99/node-runtime" target="_blank" rel="noopener">Maven 上的 node-runtime</a>
+        <a href="https://github.com/fellow99/aosp-node-pty/releases/tag/v24.22.1" target="_blank" rel="noopener">node-pty v24.22.1 Release</a>
         <a href="https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge" target="_blank" rel="noopener">@fellow99/node-bridge</a>
         <a href="https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime" target="_blank" rel="noopener">@fellow99/node-runtime</a>
         <a href="index.html" hreflang="en">English</a>
